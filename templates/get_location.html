@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geolocation Example</title>
+    <style>
+        #loader {
+            display: none;
+            border: 16px solid #f3f3f3;
+            border-top: 16px solid #3498db;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loader"></div>
+
+    <form id="locationForm" method="POST" action="{% url 'get_location' %}">
+        {% csrf_token %}
+        <input type="hidden" id="latitude" name="latitude">
+        <input type="hidden" id="longitude" name="longitude">
+    </form>
+
+    <script>
+        let formSubmitted = false;
+
+        window.onload = function() {
+            console.log("Window loaded, starting getLocation.");
+            getLocation();
+        };
+
+        function getLocation() {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'block';
+
+            if (navigator.geolocation) {
+                console.log("Geolocation is supported, requesting position...");
+                navigator.geolocation.getCurrentPosition(showPosition, showError);
+            } else {
+                loader.style.display = 'none';
+                console.log("Geolocation is not supported by this browser.");
+            }
+        }
+
+        function showPosition(position) {
+            if (formSubmitted) return;
+
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            console.log("Position received:");
+            console.log("Latitude: " + lat + ", Longitude: " + lon);
+            document.getElementById('loader').style.display = 'none';
+
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lon;
+
+            formSubmitted = true;
+            document.getElementById('locationForm').submit();
+        }
+
+        function showError(error) {
+            const loader = document.getElementById('loader');
+            loader.style.display = 'none';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    console.log("User denied the request for Geolocation.");
+                    alert("Please allow location access to use this feature.");
+                    setTimeout(getLocation, 3000);
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    console.log("Location information is unavailable.");
+                    break;
+                case error.TIMEOUT:
+                    console.log("The request to get user location timed out.");
+                    break;
+                case error.UNKNOWN_ERROR:
+                    console.log("An unknown error occurred.");
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

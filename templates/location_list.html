@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locations List</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+            font-size: 2em;
+            color: #2c3e50;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        li {
+            background-color: #fff;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        li>div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            background-color: #3498db;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .map-container {
+            height: 400px;
+            width: 100%;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: none;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #e74c3c;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .close-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .pagination {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .pagination button {
+            padding: 10px 15px;
+            margin: 0 5px;
+            border: none;
+            background-color: #3498db;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .pagination button:hover {
+            background-color: #2980b9;
+        }
+
+        .pagination button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Locations List</h1>
+    <button onclick="logout()" style="background-color: #c0392b;">Logout</button>
+    <ul id="location-list">
+        <!-- Location items will be dynamically inserted here -->
+    </ul>
+    <div class="pagination">
+        <button id="prev-page" onclick="prevPage()" disabled>Previous</button>
+        <button id="next-page" onclick="nextPage()">Next</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+
+        const locations = [
+    {% for location in locations %}
+    {
+        id: {{ location.id }},
+        latitude: {{ location.latitude }},
+        longitude: {{ location.longitude }}
+    },
+    {% endfor %}
+];
+
+        const entriesPerPage = 15;
+        let currentPage = 1;
+        const maps = {};
+
+        function renderList() {
+            const locationList = document.getElementById('location-list');
+            locationList.innerHTML = '';
+
+            const start = (currentPage - 1) * entriesPerPage;
+            const end = start + entriesPerPage;
+            const paginatedLocations = locations.slice(start, end);
+
+            paginatedLocations.forEach(location => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div>
+                        <span>
+                            <strong>ID:</strong> ${location.id}<br>
+                            <strong>Latitude:</strong> ${location.latitude}<br>
+                            <strong>Longitude:</strong> ${location.longitude}
+                        </span>
+                        <button onclick="showMap(${location.id}, ${location.latitude}, ${location.longitude})">Show on Map</button>
+                    </div>
+                    <div id="map-${location.id}" class="map-container">
+                        <button class="close-btn" onclick="closeMap(${location.id})">Close</button>
+                    </div>
+                `;
+                locationList.appendChild(li);
+            });
+
+            document.getElementById('prev-page').disabled = currentPage === 1;
+            document.getElementById('next-page').disabled = end >= locations.length;
+        }
+
+        function showMap(id, lat, lon) {
+            const mapContainer = document.getElementById(`map-${id}`);
+            if (!maps[id]) {
+                mapContainer.style.display = 'block';
+                maps[id] = L.map(`map-${id}`).setView([lat, lon], 13);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    minZoom: 4,
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+                }).addTo(maps[id]);
+
+                L.marker([lat, lon]).addTo(maps[id])
+                    .bindPopup(`Latitude: ${lat}, Longitude: ${lon}`)
+                    .openPopup();
+            } else {
+                maps[id].setView([lat, lon], 13);
+                mapContainer.style.display = 'block';
+            }
+        }
+
+        function closeMap(id) {
+            const mapContainer = document.getElementById(`map-${id}`);
+            mapContainer.style.display = 'none';
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderList();
+            }
+        }
+
+        function nextPage() {
+            if ((currentPage * entriesPerPage) < locations.length) {
+                currentPage++;
+                renderList();
+            }
+        }
+
+        // Initial render
+        renderList();
+        function logout() {
+            // Redirect to the logout URL
+            window.location.href = "{% url 'logout' %}";
+        }
+    </script>
+</body>
+
+</html>
